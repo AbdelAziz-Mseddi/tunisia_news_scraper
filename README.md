@@ -28,6 +28,10 @@ uv run playwright install chromium
 uv sync --extra analysis
 ```
 
+The SQLite database file is created automatically the first time you run
+`uv run tunisia-scrape` or `uv run tunisia-analyze`. No manual database
+setup is needed.
+
 ## Usage
 
 ```bash
