@@ -6,12 +6,12 @@ MODEL_VERSION, runs region detection + sentiment + urgency on each,
 and saves results into `article_insights`.
 
 Usage:
-    python analyze.py                  # analyze everything new
-    python analyze.py --limit 100      # cap batch size
-    python analyze.py --no-sentiment   # skip sentiment (e.g. if you
+    uv run tunisia-analyze             # analyze everything new
+    uv run tunisia-analyze --limit 100 # cap batch size
+    uv run tunisia-analyze --no-sentiment   # skip sentiment (e.g. if you
                                         # haven't installed transformers/torch yet,
                                         # or just want fast region+urgency first)
-    python analyze.py --stats          # print insight stats and exit
+    uv run tunisia-analyze --stats     # print insight stats and exit
 """
 
 import argparse

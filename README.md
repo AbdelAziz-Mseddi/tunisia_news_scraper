@@ -17,29 +17,37 @@ secondarily) and produce analytics.
 ## Setup
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv venv
+source .venv/bin/activate
+uv sync
 
 # Only needed if you'll use MosaiquePlaywrightScraper:
-playwright install chromium
+uv run playwright install chromium
+
+# Optional: install the analysis extras if you want sentiment scoring
+uv sync --extra analysis
 ```
 
 ## Usage
 
 ```bash
 # Scrape Nessma (RSS) + El Watania (HTML)
-python main.py
+uv run tunisia-scrape
 
 # Also crawl Mosaique via headless browser (slower)
-python main.py --with-mosaique-playwright
+uv run tunisia-scrape --with-mosaique-playwright
 
 # Just check what's in the DB so far
-python main.py --stats
+uv run tunisia-scrape --stats
+
+# Analyze saved articles
+uv run tunisia-analyze
+uv run tunisia-analyze --no-sentiment
+uv run tunisia-analyze --stats
 ```
 
-Re-running `main.py` is safe — articles are deduplicated by URL, so a
-cron job that runs this hourly will only insert genuinely new items.
+Re-running the scraper is safe — articles are deduplicated by URL, so
+a cron job that runs this hourly will only insert genuinely new items.
 
 ## Discovering Mosaique article URLs
 
@@ -48,7 +56,7 @@ own, because listing pages need JS to render. Three ways to get URLs:
 
 1. **`MosaiquePlaywrightScraper.discover_article_urls()`** — renders
    the listing page with a headless browser and scrolls to load more.
-   Slowest but most self-contained; see `main.py --with-mosaique-playwright`.
+  Slowest but most self-contained; see `uv run tunisia-scrape --with-mosaique-playwright`.
 2. **Check for a sitemap.xml** once you have real network access —
    most Next.js news sites publish one at `/sitemap.xml` even when the
    HTML pages are client-rendered. This research session's tooling
@@ -77,13 +85,13 @@ own, because listing pages need JS to render. Three ways to get URLs:
 ## What's NOT done yet (by design)
 
 - Analytics/dashboard layer (final step, comes last per project plan).
-- Scheduling (cron/Airflow) — `main.py`/`analyze.py` are cron-friendly
-  but nothing schedules them yet.
+- Scheduling (cron/Airflow) — `uv run tunisia-scrape` and `uv run
+  tunisia-analyze` are cron-friendly, but nothing schedules them yet.
 
 ## Analysis module (region + sentiment + urgency)
 
-Second stage of the pipeline: `python analyze.py` pulls every scraped
-article that doesn't yet have insights, runs three independent
+Second stage of the pipeline: `uv run tunisia-analyze` pulls every
+scraped article that doesn't yet have insights, runs three independent
 detectors, and stores results in a separate `article_insights` table
 (one-to-many with `articles`, joined on `article_id`).
 
@@ -132,15 +140,15 @@ requirement (local, free, runs on your own machine):
   and want it faster.
 
 Not runnable/tested in the sandbox this project was built in (no
-network access to download model weights) — install `torch` +
-`transformers` (see `requirements.txt`) and test it yourself with:
+network access to download model weights) — install the analysis extra
+from `pyproject.toml` and test it yourself with:
 ```bash
 python -c "from analysis.sentiment_analyzer import analyze_sentiment; print(analyze_sentiment('Une belle réussite pour la Tunisie'))"
 ```
 
-If you don't want to install transformers/torch yet, `analyze.py
---no-sentiment` runs region + urgency only (both dependency-free) so
-you're not blocked.
+If you don't want to install transformers/torch yet, `uv run
+tunisia-analyze --no-sentiment` runs region + urgency only (both
+dependency-free) so you're not blocked.
 
 ### Urgency/severity (`analysis/urgency_detector.py`)
 
@@ -157,9 +165,9 @@ through to "routine" since no matching keyword exists yet).
 ### Running it
 
 ```bash
-python analyze.py                  # full run: region + sentiment + urgency
-python analyze.py --no-sentiment   # region + urgency only, no transformers/torch needed
-python analyze.py --limit 100      # cap batch size
-python analyze.py --stats          # print counts by region/sentiment/urgency
+uv run tunisia-analyze                  # full run: region + sentiment + urgency
+uv run tunisia-analyze --no-sentiment   # region + urgency only, no transformers/torch needed
+uv run tunisia-analyze --limit 100      # cap batch size
+uv run tunisia-analyze --stats          # print counts by region/sentiment/urgency
 ```
 

@@ -2,13 +2,13 @@
 Orchestrator: run every configured scraper and persist results.
 
 Usage:
-    python main.py                 # run all "cheap" scrapers (RSS + HTML)
-    python main.py --with-mosaique-playwright   # also crawl Mosaique via headless browser
-    python main.py --stats         # just print DB stats and exit
+    uv run tunisia-scrape                # run all "cheap" scrapers (RSS + HTML)
+    uv run tunisia-scrape --with-mosaique-playwright   # also crawl Mosaique via headless browser
+    uv run tunisia-scrape --stats        # just print DB stats and exit
 
 This is intentionally simple (a straight-line script, no task queue)
 so it's easy to run by hand or drop into a daily cron job:
-    0 * * * *  cd /path/to/project && python main.py >> scrape.log 2>&1
+    0 * * * *  cd /path/to/project && uv run tunisia-scrape >> scrape.log 2>&1
 """
 
 import argparse
