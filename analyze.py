@@ -26,7 +26,7 @@ from analysis.urgency_detector import detect_urgency
 # model, or urgency keyword lists -- it lets you re-run analysis on
 # everything without losing/overwriting the previous run's results,
 # so you can compare before/after.
-MODEL_VERSION = "v1_gazetteer_xlmr_keywords"
+MODEL_VERSION = "v2_strict_local_body_context"
 
 
 def analyze_batch(limit: int = 500, use_sentiment: bool = True) -> int:
@@ -47,7 +47,13 @@ def analyze_batch(limit: int = 500, use_sentiment: bool = True) -> int:
         title = art["title"] or ""
         body = art["body"] or ""
 
-        region_result = detect_region(title, body)
+        region_result = detect_region(
+            title,
+            body,
+            source=art.get("source"),
+            category=art.get("category"),
+            url=art.get("url"),
+        )
         urgency_result = detect_urgency(title, body)
 
         sentiment = None

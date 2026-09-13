@@ -165,14 +165,20 @@ detectors, and stores results in a separate `article_insights` table
 - Keeps the scraping module and the analysis module fully decoupled —
   either can be rebuilt independently.
 
+Regional detection (`analysis/region_detector.py` + `analysis/gazetteer.py`)
 ### Region detection (`analysis/region_detector.py` + `analysis/gazetteer.py`)
-
 Gazetteer-based, no ML: matches the title first (falls back to body at
 lower confidence) against a bilingual (FR/AR) dictionary of Tunisia's
 24 governorates plus ~90 delegations/cities mapped to their parent
 governorate. Delegation matches ("Ain Draham" → Jendouba) are checked
 before bare governorate names, since Tunisian news headlines almost
 always name the specific town, not the governorate.
+
+Current heuristic: body-only matches are only accepted for clearly
+local feeds (for example Nessma "regions", Watania "regional", or
+Mosaique URLs under the regional sitemap). This reduces false positives
+from national, sports, and international stories that mention a place
+in passing but are not actually about that region.
 
 **Tested against real scraped titles** (see `README` git history /
 conversation for the test transcript) — 100% correct on a 12-title

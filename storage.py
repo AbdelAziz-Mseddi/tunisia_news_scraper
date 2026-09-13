@@ -124,7 +124,7 @@ def get_unanalyzed_articles(db_path: str, model_version: str, limit: int = 500) 
         conn.row_factory = sqlite3.Row
         cur = conn.execute(
             """
-            SELECT a.id, a.title, a.body, a.language, a.source, a.category
+            SELECT a.id, a.url, a.title, a.body, a.language, a.source, a.category
             FROM articles a
             LEFT JOIN article_insights i
                 ON a.id = i.article_id AND i.model_version = ?

@@ -10,9 +10,10 @@ requirement):
      un terroriste...", "Gafsa: Déraillement d'un train...").
   2. If no delegation match, search the TITLE for a governorate name
      directly.
-  3. If nothing in the title, repeat steps 1-2 on the BODY, at lower
-     confidence (a region mentioned only in the body is more likely to
-     be incidental/contextual than the article's actual subject).
+  3. If nothing in the title, repeat steps 1-2 on the BODY only for
+      clearly local articles (for example regional feeds or Mosaique's
+      regional sitemap), at lower confidence. This avoids incidental
+      context mentions in national/sports/international stories.
   4. If still nothing, return region=None (article is likely national/
      international news with no specific region).
 
@@ -100,6 +101,20 @@ def _find_matches(text: str, terms: list[str]) -> list[str]:
     return found
 
 
+_LOCAL_BODY_CONTEXTS = {
+    ("nessma", "regions"),
+    ("watania", "regional"),
+}
+
+
+def _looks_locally_grounded(source: Optional[str], category: Optional[str], url: Optional[str]) -> bool:
+    if source and category and (source, category) in _LOCAL_BODY_CONTEXTS:
+        return True
+    if source == "mosaique" and url and "/actualite-regional-tunisie/" in url:
+        return True
+    return False
+
+
 @dataclass
 class RegionResult:
     region: Optional[str] = None
@@ -108,7 +123,13 @@ class RegionResult:
     matches: list[str] = field(default_factory=list)
 
 
-def detect_region(title: str, body: str = "") -> RegionResult:
+def detect_region(
+    title: str,
+    body: str = "",
+    source: Optional[str] = None,
+    category: Optional[str] = None,
+    url: Optional[str] = None,
+) -> RegionResult:
     # 1 & 2: title first, delegations before bare governorate names
     title_delegation_matches = _find_matches(title or "", _ALL_DELEGATION_TERMS)
     if title_delegation_matches:
@@ -142,9 +163,13 @@ def detect_region(title: str, body: str = "") -> RegionResult:
             matches=title_gov_matches,
         )
 
-    # 3: fall back to body, lower confidence
-    if body:
-        body_delegation_matches = _find_matches(body, _ALL_DELEGATION_TERMS)
+    # 3: fall back to body, lower confidence, but only when the article
+    # is already known to be locally grounded. This avoids incidental
+    # place names in national/sports/international stories becoming false
+    # region assignments.
+    if body and _looks_locally_grounded(source, category, url):
+        body_snippet = body[:500]
+        body_delegation_matches = _find_matches(body_snippet, _ALL_DELEGATION_TERMS)
         if body_delegation_matches:
             governorates = {_DELEGATION_LOOKUP[m] for m in body_delegation_matches}
             return RegionResult(
@@ -154,7 +179,7 @@ def detect_region(title: str, body: str = "") -> RegionResult:
                 matches=body_delegation_matches,
             )
 
-        body_gov_matches = _find_matches(body, _ALL_GOVERNORATE_TERMS)
+        body_gov_matches = _find_matches(body_snippet, _ALL_GOVERNORATE_TERMS)
         if body_gov_matches:
             governorate = _GOVERNORATE_LOOKUP[body_gov_matches[0]]
             return RegionResult(
