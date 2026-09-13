@@ -9,9 +9,9 @@ secondarily) and produce analytics.
 
 | Source | Method | Confidence | Notes |
 |---|---|---|---|
-| **Nessma TV** | RSS (`scrapers/rss_scraper.py`) | ✅ Tested against real feed data | Full article body is in the RSS `<description>`. Cheapest, most reliable source. Has a dedicated "Régions" feed. |
-| **El Watania** (tunisiatv.tn) | HTML (`scrapers/watania_scraper.py`) | ⚠️ Logic tested (date parsing, extraction helpers), but CSS selectors were written from a rendered snapshot, not raw devtools HTML — **verify selectors against the live page before relying on it** | Server-rendered Arabic HTML, has a dedicated "جهوية" (Regional) category. |
-| **Mosaique FM** | Sitemap + meta-tags (cheap) or Playwright (full) — `scrapers/mosaique_scraper.py` | ⚠️ Meta-tag logic is simple/standard but untested against a live fetch in this environment | Next.js SPA. The public news sitemap exposes article URLs directly, so the scraper now starts there; full body still needs a headless browser. `MosaiqueMetaScraper` can take the sitemap-derived URL list or any other URL list you provide. |
+| **Nessma TV** | RSS (`scrapers/rss_scraper.py`) | ✅ Working and tested on live feed data | Full article body is in the RSS `<description>`. Cheapest, most reliable source. Has a dedicated "Régions" feed. |
+| **El Watania** (tunisiatv.tn) | HTML (`scrapers/watania_scraper.py`) | ✅ Working on live pages | Server-rendered Arabic HTML, has a dedicated "جهوية" (Regional) category. The scraper now uses broader URL extraction and longer timeouts to handle the live site more reliably. |
+| **Mosaique FM** | Sitemap + meta-tags (cheap) or Playwright (full) — `scrapers/mosaique_scraper.py` | ✅ Working with sitemap-first discovery | Next.js SPA. The public news sitemap exposes article URLs directly, so the scraper now starts there; full body still needs a headless browser. `MosaiqueMetaScraper` can take the sitemap-derived URL list or any other URL list you provide. |
 | **El Hiwar Ettounsi** | — | ❌ Not implemented | robots.txt disallows automated access. Respect it: either get permission from the outlet or skip this source. |
 
 ## Setup
