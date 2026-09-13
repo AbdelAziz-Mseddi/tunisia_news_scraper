@@ -74,9 +74,92 @@ own, because listing pages need JS to render. Three ways to get URLs:
   reusing `RSSScraper` if it has a feed, or writing a small new
   `BaseScraper` subclass, (3) wiring it into `main.py`.
 
-## What's NOT done yet (by design — scraping first)
+## What's NOT done yet (by design)
 
-- Region/governorate detection (gazetteer + NER) — next phase.
-- Analytics/dashboard layer.
-- Scheduling (cron/Airflow) — `main.py` is written to be cron-friendly
-  but nothing schedules it yet.
+- Analytics/dashboard layer (final step, comes last per project plan).
+- Scheduling (cron/Airflow) — `main.py`/`analyze.py` are cron-friendly
+  but nothing schedules them yet.
+
+## Analysis module (region + sentiment + urgency)
+
+Second stage of the pipeline: `python analyze.py` pulls every scraped
+article that doesn't yet have insights, runs three independent
+detectors, and stores results in a separate `article_insights` table
+(one-to-many with `articles`, joined on `article_id`).
+
+**Why a separate table instead of adding columns to `articles`:**
+- You can re-run analysis (better gazetteer, new model) without
+  touching raw scraped data — old and new results can coexist,
+  distinguished by `model_version`, so you can compare before/after.
+- Keeps the scraping module and the analysis module fully decoupled —
+  either can be rebuilt independently.
+
+### Region detection (`analysis/region_detector.py` + `analysis/gazetteer.py`)
+
+Gazetteer-based, no ML: matches the title first (falls back to body at
+lower confidence) against a bilingual (FR/AR) dictionary of Tunisia's
+24 governorates plus ~90 delegations/cities mapped to their parent
+governorate. Delegation matches ("Ain Draham" → Jendouba) are checked
+before bare governorate names, since Tunisian news headlines almost
+always name the specific town, not the governorate.
+
+**Tested against real scraped titles** (see `README` git history /
+conversation for the test transcript) — 100% correct on a 12-title
+sample after fixing an Arabic-specific bug (see below), including
+correctly returning no region for non-regional news.
+
+**Known limitation handled:** Arabic attaches prepositions/conjunctions
+(ب, ل, ك, ف, و) directly to the next word with no space — e.g.
+"بالقيروان" ("in Kairouan") — which breaks naive word-boundary regex
+matching. Fixed by registering prefixed variants of every Arabic
+gazetteer term. If you see a missed region during real use, check
+whether it's this same class of issue on an uncommon prefix combo.
+
+**Extending the gazetteer:** `analysis/gazetteer.py` is a plain Python
+dict — add new delegations as you encounter them in real scraped
+data. The official INS (Institut National de la Statistique) list of
+all ~350 Tunisian delegations would let you make this exhaustive.
+
+### Sentiment (`analysis/sentiment_analyzer.py`)
+
+Uses `cardiffnlp/twitter-xlm-roberta-base-sentiment`, an open-weights
+HuggingFace model covering French AND Arabic in one model. Per your
+requirement (local, free, runs on your own machine):
+- First run downloads ~1GB of weights (needs internet once).
+- Every run after that is fully offline and free — no API calls, no
+  per-request cost.
+- Runs fine on CPU; a GPU only helps if you're processing huge volumes
+  and want it faster.
+
+Not runnable/tested in the sandbox this project was built in (no
+network access to download model weights) — install `torch` +
+`transformers` (see `requirements.txt`) and test it yourself with:
+```bash
+python -c "from analysis.sentiment_analyzer import analyze_sentiment; print(analyze_sentiment('Une belle réussite pour la Tunisie'))"
+```
+
+If you don't want to install transformers/torch yet, `analyze.py
+--no-sentiment` runs region + urgency only (both dependency-free) so
+you're not blocked.
+
+### Urgency/severity (`analysis/urgency_detector.py`)
+
+Keyword-based (FR + AR), no ML: three tiers (urgent/moderate/routine)
+based on curated word lists (deaths, explosions, disasters → urgent;
+strikes, protests, accidents → moderate; everything else → routine).
+**Tested against real headlines** — correctly flagged a terrorist
+attack and a fatal shipwreck as urgent, a strike as moderate, and
+tourism/economic stats as routine. This lexicon is deliberately a
+starting point — extend `URGENT_KEYWORDS_*` / `MODERATE_KEYWORDS_*` as
+you see real missed cases (e.g. drug-bust stories currently fall
+through to "routine" since no matching keyword exists yet).
+
+### Running it
+
+```bash
+python analyze.py                  # full run: region + sentiment + urgency
+python analyze.py --no-sentiment   # region + urgency only, no transformers/torch needed
+python analyze.py --limit 100      # cap batch size
+python analyze.py --stats          # print counts by region/sentiment/urgency
+```
+
