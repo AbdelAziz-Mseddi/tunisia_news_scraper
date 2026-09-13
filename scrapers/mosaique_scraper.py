@@ -10,16 +10,16 @@ the body text is not. See config.py for more context.
 This module ships two strategies:
 
 1. MosaiqueMetaScraper: takes a list of already-known article URLs
-   (e.g. collected from Google/Bing search results, their public RSS
-   if you find one, or manual/other discovery) and extracts title +
-   short summary from each via plain HTTP requests. Cheap and fast,
-   but gives you title + ~1-sentence summary only, not full body.
+    (e.g. collected from the public sitemap, Google/Bing search results,
+    or manual/other discovery) and extracts title + short summary from
+    each via plain HTTP requests. Cheap and fast, but gives you title +
+    ~1-sentence summary only, not full body.
 
-2. MosaiquePlaywrightScraper: uses a headless browser to actually
-   render the listing page's JavaScript, so it can discover article
-   URLs on its own, and can optionally also render each article page
-   to extract the full body text. Slower and requires
-   `playwright install chromium` to have been run once.
+2. MosaiquePlaywrightScraper: first tries the public news sitemap to
+    discover article URLs, then falls back to the listing page's
+    JavaScript if needed. It can optionally also render each article
+    page to extract the full body text. Slower and requires
+    `playwright install chromium` to have been run once.
 
 Use (1) for a lightweight, high-frequency title-only feed (matches
 your "detect region mainly from the title" requirement almost for
@@ -117,7 +117,11 @@ class MosaiquePlaywrightScraper:
         resp.raise_for_status()
 
         urls = set()
-        for match in re.findall(r"https://www\.mosaiquefm\.net/fr/actualite-regional-tunisie/\d+/[^\s<]+", resp.text):
+        for match in re.findall(r"https://www\.mosaiquefm\.net/fr/(?!uploads/)[^\s<]+", resp.text):
+            if "/fr/" not in match or "/uploads/" in match:
+                continue
+            if any(segment in match for segment in ("/video/", "/podcast/")):
+                continue
             urls.add(match)
         return list(urls)
 

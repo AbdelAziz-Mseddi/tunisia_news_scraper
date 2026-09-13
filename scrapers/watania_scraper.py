@@ -78,12 +78,19 @@ class WataniaScraper(BaseScraper):
             timeout=self.request_timeout_seconds,
             max_attempts=self.max_attempts,
         )
+        hrefs = {
+            urljoin(WATANIA_BASE, match)
+            for match in re.findall(r"/ar/article/[a-f0-9]+/[^\"'\s<>]+", resp.text)
+        }
+
+        # Some links only appear in the rendered HTML after hydration, so
+        # fall back to parsed anchors too and merge the two sources.
         soup = BeautifulSoup(resp.text, "lxml")
-        hrefs = set()
         for a in soup.find_all("a", href=True):
             if ARTICLE_LINK_PATTERN.search(a["href"]):
                 hrefs.add(urljoin(WATANIA_BASE, a["href"]))
-        return list(hrefs)
+
+        return sorted(hrefs)
 
     def _fetch_article(self, url: str, category: str) -> Optional[Article]:
         resp = self.get(
