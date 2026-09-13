@@ -25,6 +25,7 @@ uv sync
 uv run playwright install chromium
 
 # Optional: install the analysis extras if you want sentiment scoring
+# (this includes the tokenizer deps needed by the Hugging Face model)
 uv sync --extra analysis
 ```
 
