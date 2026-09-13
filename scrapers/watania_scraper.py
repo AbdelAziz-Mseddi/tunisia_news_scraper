@@ -51,6 +51,8 @@ def _parse_arabic_date(text: str) -> Optional[str]:
 
 class WataniaScraper(BaseScraper):
     source_name = "watania"
+    request_timeout_seconds = 45
+    max_attempts = 4
 
     def fetch(self, max_articles_per_category: int = 30) -> List[Article]:
         articles: List[Article] = []
@@ -71,7 +73,11 @@ class WataniaScraper(BaseScraper):
         return articles
 
     def _list_article_links(self, listing_url: str) -> List[str]:
-        resp = self.get(listing_url)
+        resp = self.get(
+            listing_url,
+            timeout=self.request_timeout_seconds,
+            max_attempts=self.max_attempts,
+        )
         soup = BeautifulSoup(resp.text, "lxml")
         hrefs = set()
         for a in soup.find_all("a", href=True):
@@ -80,7 +86,11 @@ class WataniaScraper(BaseScraper):
         return list(hrefs)
 
     def _fetch_article(self, url: str, category: str) -> Optional[Article]:
-        resp = self.get(url)
+        resp = self.get(
+            url,
+            timeout=self.request_timeout_seconds,
+            max_attempts=self.max_attempts,
+        )
         soup = BeautifulSoup(resp.text, "lxml")
 
         title = self._meta(soup, "og:title") or (soup.title.string if soup.title else "")

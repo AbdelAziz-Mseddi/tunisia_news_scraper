@@ -27,11 +27,14 @@ free), and (2) periodically (e.g. once a day) to backfill full bodies
 for articles you want deeper NLP confirmation on.
 """
 
+import re
 from typing import List, Optional
+
+import requests
 
 from bs4 import BeautifulSoup
 
-from config import MOSAIQUE_BASE, MOSAIQUE_REGIONAL_LISTING, MOSAIQUE_LANGUAGE
+from config import MOSAIQUE_BASE, MOSAIQUE_REGIONAL_LISTING, MOSAIQUE_LANGUAGE, USER_AGENT, REQUEST_TIMEOUT
 from models import Article
 from scrapers.base import BaseScraper
 
@@ -108,9 +111,26 @@ class MosaiquePlaywrightScraper:
                 "Install with `pip install playwright` then `playwright install chromium`."
             ) from e
 
+    def _discover_from_sitemap(self) -> List[str]:
+        sitemap_url = "https://www.mosaiquefm.net/fr/sitemap/news.xml"
+        resp = requests.get(sitemap_url, timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT})
+        resp.raise_for_status()
+
+        urls = set()
+        for match in re.findall(r"https://www\.mosaiquefm\.net/fr/actualite-regional-tunisie/\d+/[^\s<]+", resp.text):
+            urls.add(match)
+        return list(urls)
+
     def discover_article_urls(
         self, listing_url: str = MOSAIQUE_REGIONAL_LISTING, max_scroll: int = 5
     ) -> List[str]:
+        try:
+            urls = self._discover_from_sitemap()
+            if urls:
+                return urls
+        except Exception as e:
+            print(f"[mosaique] sitemap discovery failed, falling back to Playwright: {e}")
+
         from playwright.sync_api import sync_playwright
 
         urls = set()

@@ -85,6 +85,7 @@ class BaseScraper(ABC):
         url: str,
         respect_robots: bool = True,
         max_attempts: int = 3,
+        timeout: int | None = None,
         **kwargs,
     ) -> requests.Response:
         if respect_robots and not self._check_allowed(url):
@@ -92,9 +93,10 @@ class BaseScraper(ABC):
 
         self._throttle(url)
         last_exc: Exception | None = None
+        request_timeout = timeout or REQUEST_TIMEOUT
         for attempt in range(1, max_attempts + 1):
             try:
-                resp = self.session.get(url, timeout=REQUEST_TIMEOUT, **kwargs)
+                resp = self.session.get(url, timeout=request_timeout, **kwargs)
                 resp.raise_for_status()
                 return resp
             except (requests.RequestException,) as e:

@@ -53,6 +53,64 @@ uv run tunisia-analyze --stats
 Re-running the scraper is safe — articles are deduplicated by URL, so
 a cron job that runs this hourly will only insert genuinely new items.
 
+## Database Queries
+
+The SQLite database lives at `tunisia_news.db` in the project root and
+is created automatically the first time you run the scraper or the
+analyzer. To inspect it interactively, use the SQLite shell:
+
+```bash
+sqlite3 tunisia_news.db
+```
+
+Inside the shell, useful commands are:
+
+```sql
+.tables
+.schema articles
+.schema article_insights
+.headers on
+.mode column
+```
+
+Ready-to-run queries:
+
+```sql
+-- Count articles by source and category
+SELECT source, category, COUNT(*) AS count
+FROM articles
+GROUP BY source, category
+ORDER BY source, category;
+
+-- Show the 20 most recent articles
+SELECT source, category, title, published_at, scraped_at, url
+FROM articles
+ORDER BY scraped_at DESC
+LIMIT 20;
+
+-- Find articles that still have no analysis row for the current model
+SELECT a.id, a.source, a.category, a.title, a.published_at
+FROM articles a
+LEFT JOIN article_insights i
+  ON a.id = i.article_id AND i.model_version = 'v1_gazetteer_xlmr_keywords'
+WHERE i.id IS NULL
+ORDER BY a.scraped_at DESC
+LIMIT 50;
+
+-- Breakdown of analysis results for the current model
+SELECT region, sentiment, urgency, COUNT(*) AS count
+FROM article_insights
+WHERE model_version = 'v1_gazetteer_xlmr_keywords'
+GROUP BY region, sentiment, urgency
+ORDER BY count DESC;
+
+-- Mosaique regional articles only
+SELECT title, published_at, url
+FROM articles
+WHERE source = 'mosaique' AND category = 'regional'
+ORDER BY published_at DESC;
+```
+
 ## Discovering Mosaique article URLs
 
 `MosaiqueMetaScraper` takes a list of URLs rather than crawling on its
