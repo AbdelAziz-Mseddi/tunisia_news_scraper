@@ -117,7 +117,8 @@ class MosaiquePlaywrightScraper:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
-            page.goto(listing_url, wait_until="networkidle")
+            page.goto(listing_url, wait_until="commit", timeout=60000)
+            page.wait_for_timeout(5000)
 
             for _ in range(max_scroll):
                 page.mouse.wheel(0, 3000)
@@ -142,7 +143,8 @@ class MosaiquePlaywrightScraper:
 
             for url in urls:
                 try:
-                    page.goto(url, wait_until="networkidle")
+                    page.goto(url, wait_until="commit", timeout=60000)
+                    page.wait_for_timeout(2000)
                     title = page.title()
                     # Heuristic: Next.js apps usually render the main
                     # article text inside <article> or <main>; adjust

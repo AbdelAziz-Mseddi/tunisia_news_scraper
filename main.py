@@ -41,7 +41,12 @@ def run_mosaique_playwright() -> int:
     from scrapers.mosaique_scraper import MosaiquePlaywrightScraper
 
     scraper = MosaiquePlaywrightScraper()
-    urls = scraper.discover_article_urls()
+    try:
+        urls = scraper.discover_article_urls()
+    except Exception as e:
+        print(f"[mosaique] skipped Playwright discovery: {e}")
+        return 0
+
     print(f"[mosaique] discovered {len(urls)} article URLs")
     articles = scraper.fetch_full_articles(urls)
     print(f"[mosaique] rendered {len(articles)} full articles")

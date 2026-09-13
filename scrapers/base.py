@@ -34,18 +34,27 @@ class BaseScraper(ABC):
         self.session.headers.update({"User-Agent": USER_AGENT})
         self._robots_cache: dict[str, urllib.robotparser.RobotFileParser] = {}
         self._last_request_time: dict[str, float] = {}
+        self._robots_warnings: set[str] = set()
 
     # -- robots.txt -------------------------------------------------
     def _get_robots(self, url: str) -> urllib.robotparser.RobotFileParser:
         domain = urlparse(url).netloc
         if domain not in self._robots_cache:
-            rp = urllib.robotparser.RobotFileParser()
-            rp.set_url(f"https://{domain}/robots.txt")
+            robots_url = f"https://{domain}/robots.txt"
             try:
-                rp.read()
+                resp = requests.get(robots_url, timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT})
+                resp.raise_for_status()
+                robots_text = resp.text
+                if not any(token in robots_text for token in ("User-agent:", "Disallow:", "Allow:", "Sitemap:")):
+                    raise ValueError("response does not look like a robots.txt file")
+
+                rp = urllib.robotparser.RobotFileParser()
+                rp.parse(robots_text.splitlines())
             except Exception:
-                # If robots.txt is unreachable, be conservative and treat
-                # everything as disallowed rather than assuming allowed.
+                # Some sites return HTML or a generic landing page at
+                # /robots.txt instead of a real robots file. In that case
+                # we fall back to allowing requests rather than falsely
+                # blocking every URL from the domain.
                 rp = None
             self._robots_cache[domain] = rp
         return self._robots_cache[domain]
@@ -53,7 +62,11 @@ class BaseScraper(ABC):
     def _check_allowed(self, url: str) -> bool:
         rp = self._get_robots(url)
         if rp is None:
-            return False
+            domain = urlparse(url).netloc
+            if domain not in self._robots_warnings:
+                print(f"[robots] no valid robots.txt found for {domain}; proceeding without robots gating")
+                self._robots_warnings.add(domain)
+            return True
         return rp.can_fetch(USER_AGENT, url)
 
     # -- politeness ---------------------------------------------------
